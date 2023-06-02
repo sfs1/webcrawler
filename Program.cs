@@ -1,11 +1,15 @@
-﻿using System.Net;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
 using System.Text.RegularExpressions;
+using System.Linq;
+using System.IO;
 
 namespace searchengine_test
 {
     internal class Program
     {
-        private static List<MDLink> AllLinks = new();
+        private static List<MDLink> AllLinks = new List<MDLink>();
         private const string StartLink = "https://en.wikipedia.org/wiki/Main_Page";
         static void Main(string[] args)
         {
@@ -26,28 +30,32 @@ namespace searchengine_test
             }*/
 
 
-            AllLinks = Crawl(StartLink, 1).ToList();
+            AllLinks = Crawl(StartLink, 2).ToList();
 
-            foreach(MDLink link in links)
+            foreach(MDLink link in AllLinks)
             {
-                Console.WriteLine("{0}, {1}", link.link, string.Join(", ", link.metadata)); //DEBUG
+                Console.WriteLine("{0}, {1}", link.link, string.Join(", ", link.metadata));
             }
-
-
+            Console.WriteLine("{0} total links.", AllLinks.Count);
             //File.WriteAllLines(@"C:\Users\billy\Desktop\links.txt", AllLinks);
         }
         private static MDLink[] Crawl(string url, int depth = 0)
         {
             Console.WriteLine("Crawling url={0}, depth={1}", url, depth);
             List<MDLink> outlinks = GetLinks(url).ToList();
-            List<MDLink[]> CombineLinks = new();
+            List<MDLink[]> CombineLinks = new List<MDLink[]>();
+            List<Thread> CrawlThreads = new List<Thread>();
             if (depth == 0) return outlinks.ToArray();
+
             foreach (MDLink link in outlinks)
             {
                 // TODO: Multithreading
                 // Recursively crawl each link and decrease the depth so we dont end up in an infinite loop.
-                CombineLinks.Add(Crawl(link.link, depth - 1));
+                    CombineLinks.Add(Crawl(link.link, depth - 1));
             }
+            // Start all the threads, then wait for each of them to be finished.
+
+
 
             // Now we need to add all CombineLinks to outlinks, then return it.
 
@@ -126,7 +134,7 @@ namespace searchengine_test
                 }
                 if (FoundMetadata) continue; // because we dont need to add another entry
 
-                MDLink NewMDLink = new()
+                MDLink NewMDLink = new MDLink()
                 {
                     link = link,
                     metadata = new List<string>(new string[] { metadata} )
