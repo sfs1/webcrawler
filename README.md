@@ -1,9 +1,9 @@
 # webcrawler
 Basic web crawler in C#
 
-# TODO:
+## TODO:
 - [ ] Actually make it 'spider' out
 - [ ] Save to a database
 - [ ] Obey robots.txt
 - [ ] Show status in web page
-- [ ] Collect Metadata
+- [x] Collect Metadata
