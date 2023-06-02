@@ -18,7 +18,8 @@ namespace searchengine_test
             
             foreach (MDLink a in links)
             {
-                Console.WriteLine("{0}: {1}", a.link, string.Join(", ", a.metadata));
+                //Console.WriteLine("{0}: {1}", a.link, string.Join(", ", a.metadata));
+                Console.WriteLine("Got link: {0}, {1}", a.link, string.Join(", ", a.metadata)); //DEBUG
             }
 
 
@@ -85,37 +86,41 @@ namespace searchengine_test
                 string link;
                 // TODO: handle extra tags, we might have a <span> or something like that inbetween the <a>
                 if (!ahref.Contains("\"")) continue;
-                link = ahref.Substring(ahref.IndexOf("\"")); // <a href="/example.html"> Example Link </a>
-                // make sure its a valid link, ill probably move it into a seperate function later
-                if (link.StartsWith("javascript")) continue; // javascript:console.log("this is not a valid link!")
-                if (link.StartsWith("#")) continue; // a '#' means jump to a div, e.g. '#mydiv' will jump to 'mydiv'
+                link = ahref.Substring(0,ahref.IndexOf("\"")); // <a href="/example.html"> Example Link </a>
+                // make sure its a valid link
+                if (!IsValidUrl(link)) continue;
+
                 if (link.StartsWith("/" + host)) link = link.Substring(0); // if its "/www.wikipedia.com/x", make it "www.wikipedia.com/x"
                 if (link.StartsWith("//")) link = link.Substring(1); // if its "//www.wikipedia.com/x", make it "www.wikipedia.com/x"
                 if (link.StartsWith("/")) link = host + link; // e.g. "/example.html" -> "https://www.example.com/example.html
                 
+                
 
                 if (!httpregex.IsMatch(link)) link = "http://" + link; // make sure it its a valid url, TODO: check if we should use http or https
 
-                link = link.Substring(0, link.IndexOf("</a>"));
+                //link = link.Substring(0, link.IndexOf("</a>"));
 
                 // grab the metadata e.g. hyperlink text or image alt 
                 // TODO: handle extra tags, we might have a <span> or something like that inbetween the <a>
-                string metadata = link.Substring(link.IndexOf(">") + 1); // well, at least it works! //link.Split("</a>")[0]; 
-                //metadata = metadata.Substring(metadata.IndexOf(">")); 
+                string metadata = ahref.Substring(0, ahref.IndexOf("</a>")).Substring(ahref.IndexOf(">") + 1);
+                // returns whatever is inside the <a> tags (including any other tags though) -^
 
+                if (metadata.StartsWith("<img")) continue; // skip images (for now)
 
+                metadata = RemoveTags(metadata);
+
+                if (metadata.Length > 30) continue; // if its this long then we most likely have html code, this needs re-doing but it works for now
                 // check if we already have the link, and add only the metadata if we do
 
-                Console.WriteLine("Got link: {0}, {1}", link, metadata); //DEBUG
 
                 bool FoundMetadata = false;
-                foreach (MDLink l in AllLinks)
+                foreach (MDLink l in links)
                 {
 
                     MDLink ll = l;
                     if (l.link != link) continue;
                     ll.metadata.Add(metadata);
-                    AllLinks[AllLinks.IndexOf(l)] = ll; // i cant be bothered to test if i actually need this
+                    links[links.IndexOf(l)] = ll; // i cant be bothered to test if i actually need this
                     FoundMetadata = true;
                     break;
                 }
@@ -126,8 +131,9 @@ namespace searchengine_test
                     link = link,
                     metadata = new List<string>(new string[] { metadata} )
                 };
+                
+                links.Add(NewMDLink);
 
-                AllLinks.Add(NewMDLink);
 
             }
 
@@ -135,8 +141,38 @@ namespace searchengine_test
             return links.ToArray();
 
         }
-        private static void DoNothing() { }
+        
         private static Regex httpregex = new Regex("^http(|s):\\/\\/", RegexOptions.IgnoreCase);
+        
+        private static bool IsValidUrl(string url)
+        {
+            
+            if (url.StartsWith("javascript")) return false; // javascript:console.log("this is not a valid link!")
+            if (url.StartsWith("#")) return false ; // a '#' means jump to a div, e.g. '#mydiv' will jump to 'mydiv'
+            return true;
+        }
+
+        private static string[] tags = { "span", "div", "i", "b", "h1", "h2", "h3", "center" };
+        private static string RemoveTags(string html)
+        {
+            string newhtml = html;
+            // make sure that there are any tags at all
+            if (!html.Contains("<") && !html.Contains(">")) return html;
+
+            foreach(string tag in tags)
+            {
+                // check if we need to remove this tag
+                if (!newhtml.Contains($"<{tag}>")) continue;
+                
+                int StartIndex = newhtml.IndexOf("<" +tag);
+                // remove the opening tag
+                newhtml = newhtml.Remove(newhtml.IndexOf("<" + tag), newhtml.IndexOf(">") + 1);
+                newhtml = newhtml.Replace($"</{tag}>", string.Empty);
+
+            }
+
+            return newhtml;
+        }
 
         private static string HttpGet(string url)
         {
