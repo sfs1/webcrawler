@@ -13,7 +13,10 @@ namespace searchengine_test
             //foreach (string link in Links)
             //    AllLinks.Concat(Crawl(link));
 
-            foreach (MDLink a in GetLinks(StartLink))
+            MDLink[] links = GetLinks(StartLink);
+            Console.WriteLine(links.Length);     
+            
+            foreach (MDLink a in links)
             {
                 Console.WriteLine("{0}: {1}", a.link, string.Join(", ", a.metadata));
             }
@@ -80,7 +83,7 @@ namespace searchengine_test
             foreach (string ahref in ahrefs)
             {
                 string link;
-                // make sure it has a second '"' so we can parse it
+                // TODO: handle extra tags, we might have a <span> or something like that inbetween the <a>
                 if (!ahref.Contains("\"")) continue;
                 link = ahref.Substring(ahref.IndexOf("\"")); // <a href="/example.html"> Example Link </a>
                 // make sure its a valid link, ill probably move it into a seperate function later
@@ -90,27 +93,31 @@ namespace searchengine_test
                 if (link.StartsWith("//")) link = link.Substring(1); // if its "//www.wikipedia.com/x", make it "www.wikipedia.com/x"
                 if (link.StartsWith("/")) link = host + link; // e.g. "/example.html" -> "https://www.example.com/example.html
                 
+
                 if (!httpregex.IsMatch(link)) link = "http://" + link; // make sure it its a valid url, TODO: check if we should use http or https
 
+                link = link.Substring(0, link.IndexOf("</a>"));
+
                 // grab the metadata e.g. hyperlink text or image alt 
-                // our link = /example.html"> Example Link </a> [blah, blah, blah]. we need to extract the text betweem the <a> tags
-                string metadata = link.Split("</a>")[0]; // now we just need to remove the opening a tag
-                metadata = metadata.Substring(metadata.IndexOf(">")); // we should have the text inbetween the <a> tags now
+                // TODO: handle extra tags, we might have a <span> or something like that inbetween the <a>
+                string metadata = link.Substring(link.IndexOf(">") + 1); // well, at least it works! //link.Split("</a>")[0]; 
+                //metadata = metadata.Substring(metadata.IndexOf(">")); 
 
 
                 // check if we already have the link, and add only the metadata if we do
 
+                Console.WriteLine("Got link: {0}, {1}", link, metadata); //DEBUG
 
                 bool FoundMetadata = false;
                 foreach (MDLink l in AllLinks)
                 {
-                    if (AllLinks.Count == 165) 
-                        DoNothing();
+
                     MDLink ll = l;
                     if (l.link != link) continue;
                     ll.metadata.Add(metadata);
                     AllLinks[AllLinks.IndexOf(l)] = ll; // i cant be bothered to test if i actually need this
                     FoundMetadata = true;
+                    break;
                 }
                 if (FoundMetadata) continue;
 
@@ -124,7 +131,6 @@ namespace searchengine_test
 
             }
 
-            links.Remove(links.First());
 
             return links.ToArray();
 
