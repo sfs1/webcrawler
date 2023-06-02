@@ -14,16 +14,51 @@ namespace searchengine_test
             //    AllLinks.Concat(Crawl(link));
 
             MDLink[] links = GetLinks(StartLink);
-            Console.WriteLine(links.Length);     
-            
-            foreach (MDLink a in links)
+            Console.WriteLine(links.Length);
+
+            /*foreach (MDLink a in links)
             {
                 //Console.WriteLine("{0}: {1}", a.link, string.Join(", ", a.metadata));
                 Console.WriteLine("Got link: {0}, {1}", a.link, string.Join(", ", a.metadata)); //DEBUG
+                foreach(MDLink b in GetLinks(a.link))
+                    Console.WriteLine("Got link: {0}, {1}", b.link, string.Join(", ", b.metadata)); //DEBUG
+
+            }*/
+
+
+            AllLinks = Crawl(StartLink, 1).ToList();
+
+            foreach(MDLink link in links)
+            {
+                Console.WriteLine("{0}, {1}", link.link, string.Join(", ", link.metadata)); //DEBUG
             }
 
 
-            //File.WriteAllLines(@"C:\Users\billy\Desktop\links.txt", Links);
+            //File.WriteAllLines(@"C:\Users\billy\Desktop\links.txt", AllLinks);
+        }
+        private static MDLink[] Crawl(string url, int depth = 0)
+        {
+            Console.WriteLine("Crawling url={0}, depth={1}", url, depth);
+            List<MDLink> outlinks = GetLinks(url).ToList();
+            List<MDLink[]> CombineLinks = new();
+            if (depth == 0) return outlinks.ToArray();
+            foreach (MDLink link in outlinks)
+            {
+                // TODO: Multithreading
+                // Recursively crawl each link and decrease the depth so we dont end up in an infinite loop.
+                CombineLinks.Add(Crawl(link.link, depth - 1));
+            }
+
+            // Now we need to add all CombineLinks to outlinks, then return it.
+
+            foreach (MDLink[] Links in CombineLinks)
+            {
+                outlinks = outlinks.Concat(Links).ToList();
+                Console.WriteLine("{0}, {1}", outlinks.Count, Links.Length);
+            }
+
+            return outlinks.ToArray();
+
         }
 
         // Link with metadata e.g. hyperlink text or image alt 
@@ -32,41 +67,6 @@ namespace searchengine_test
             public string link;
             public List<string> metadata;
         }
-
-       /* private static Dictionary<String, List<String>> Crawl(string url)
-        {
-            Dictionary<String, List<String>> AllLinksWithMetadata = new();
-            List<Thread> SpiderThreads = new();
-
-            MDLink[] FirstLinks = GetLinks(url);
-
-
-            foreach (string Link in FirstLinks)
-            {
-                SpiderThreads.Add(new Thread(() =>
-                {
-                    foreach (string a in GetLinks(Link))
-                    {
-                        Console.WriteLine(a);
-                        AllLinks.Add(a);
-                    }
-                }));
-                AllLinks.Add(Link);
-            }
-
-            foreach (Thread t in SpiderThreads)
-                t.Start();
-            foreach (Thread t in SpiderThreads)
-            {
-                while (true)
-                {
-                    if (t.Join(100)) break;
-                }
-            }
-            return AllLinks;
-
-
-        }*/
 
     private static MDLink[] GetLinks(string url)
         {
@@ -124,7 +124,7 @@ namespace searchengine_test
                     FoundMetadata = true;
                     break;
                 }
-                if (FoundMetadata) continue;
+                if (FoundMetadata) continue; // because we dont need to add another entry
 
                 MDLink NewMDLink = new()
                 {
@@ -137,7 +137,7 @@ namespace searchengine_test
 
             }
 
-
+            
             return links.ToArray();
 
         }
@@ -152,7 +152,7 @@ namespace searchengine_test
             return true;
         }
 
-        private static string[] tags = { "span", "div", "i", "b", "h1", "h2", "h3", "center" };
+        private static string[] tags = { "span", "div", "i", "b", "li", "h1", "h2", "h3", "center" };
         private static string RemoveTags(string html)
         {
             string newhtml = html;
@@ -166,8 +166,11 @@ namespace searchengine_test
                 
                 int StartIndex = newhtml.IndexOf("<" +tag);
                 // remove the opening tag
-                newhtml = newhtml.Remove(newhtml.IndexOf("<" + tag), newhtml.IndexOf(">") + 1);
+                IEnumerable<char> remove = newhtml.Take(new Range(StartIndex, newhtml.IndexOf(">", StartIndex) + 1));
+                newhtml = newhtml.Replace(new String(remove.ToArray()), string.Empty); // im genuinly surprised this even works
                 newhtml = newhtml.Replace($"</{tag}>", string.Empty);
+                
+
 
             }
 
