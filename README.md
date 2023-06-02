@@ -6,4 +6,5 @@ Basic web crawler in C#
 - [ ] Save to a database
 - [ ] Obey robots.txt
 - [ ] Show status in web page
+- [ ] Support for images
 - [x] Collect Metadata
